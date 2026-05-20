@@ -1,13 +1,13 @@
 // ========================================================
 // Value type definition for L4
 
-import { isPrimOp, CExp, PrimOp, VarDecl } from './L3-ast';
+import { isPrimOp, CExp, PrimOp, VarDecl, Binding } from './L3-ast';
 import { Env, makeEmptyEnv } from './L3-env-env';
 import { append } from 'ramda';
 import { isArray, isNumber, isString } from '../shared/type-predicates';
 
 
-export type Value = SExpValue;
+export type Value = SExpValue | Closure | Class | Object;
 
 export type Functional = PrimOp | Closure;
 export const isFunctional = (x: any): x is Functional => isPrimOp(x) || isClosure(x);
@@ -21,11 +21,35 @@ export type Closure = {
     body: CExp[];
     env: Env;
 }
+
+export interface Class {
+    tag: "Class";
+    fields: VarDecl[];
+    methods: Binding[];
+    env: Env;
+}
+
+export interface Object {
+    tag: "Object";
+    methods: Binding[];
+    env: Env;
+}
+
 export const makeClosure = (params: VarDecl[], body: CExp[]): Closure =>
     ({tag: "Closure", params: params, body: body, env : makeEmptyEnv()});
 export const makeClosureEnv = (params: VarDecl[], body: CExp[], env: Env): Closure =>
     ({tag: "Closure", params: params, body: body, env: env});
 export const isClosure = (x: any): x is Closure => x.tag === "Closure";
+
+export const makeClass = (fields: VarDecl[], methods: Binding[],env: Env): Class =>
+    ({ tag: "Class", fields: fields, methods: methods, env: env });
+
+export const isClass = (x: any): x is Class => x.tag === "Class";
+
+export const makeObject = (methods: Binding[], env: Env): Object =>
+    ({ tag: "Object", methods: methods, env: env });
+
+export const isObject = (x: any): x is Object => x.tag === "Object";
 
 // ========================================================
 // SExp
@@ -86,4 +110,6 @@ export const valueToString = (val: Value): string =>
     isSymbolSExp(val) ? val.val :
     isEmptySExp(val) ? "'()" :
     isCompoundSExp(val) ? compoundSExpToString(val) :
+     isClass(val) ? "Class" : 
+    isObject(val) ? "Object" :
     val;

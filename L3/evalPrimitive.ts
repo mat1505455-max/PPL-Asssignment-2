@@ -87,10 +87,10 @@ const cdrPrim = (v: Value): Result<Value> =>
     makeFailure(`Cdr: param is not compound ${format(v)}`);
 
 const consPrim = (v1: Value, v2: Value): CompoundSExp =>
-    makeCompoundSExp(v1, v2);
+    makeCompoundSExp(v1 as any, v2 as any);
 
 export const listPrim = (vals: List<Value>): EmptySExp | CompoundSExp =>
-    isNonEmptyList<Value>(vals) ? makeCompoundSExp(first(vals), listPrim(rest(vals))) :
+    isNonEmptyList<Value>(vals) ? makeCompoundSExp(first(vals) as any, listPrim(rest(vals) as any)) :
     makeEmptySExp();
 
 const isPairPrim = (v: Value): boolean =>

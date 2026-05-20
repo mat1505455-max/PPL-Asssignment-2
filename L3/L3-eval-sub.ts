@@ -1,6 +1,6 @@
 // L3-eval.ts
-import { map } from "ramda";
-import { isCExp, isLetExp } from "./L3-ast";
+import { map, zipWith} from "ramda";
+import { isCExp, isLetExp, ClassExp, isClassExp, makeBinding } from "./L3-ast";
 import { BoolExp, CExp, Exp, IfExp, LitExp, NumExp,
          PrimOp, ProcExp, Program, StrExp, VarDecl } from "./L3-ast";
 import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLitExp, isNumExp,
@@ -8,7 +8,7 @@ import { isAppExp, isBoolExp, isDefineExp, isIfExp, isLitExp, isNumExp,
 import { makeBoolExp, makeLitExp, makeNumExp, makeProcExp, makeStrExp } from "./L3-ast";
 import { parseL3Exp } from "./L3-ast";
 import { applyEnv, makeEmptyEnv, makeEnv, Env } from "./L3-env-sub";
-import { isClosure, makeClosure, Closure, Value } from "./L3-value";
+import { isClosure, makeClosure, Closure, Value, Class, isClass, makeClass, Object, isObject, makeObject, isSymbolSExp } from "./L3-value";
 import { first, rest, isEmpty, List, isNonEmptyList } from '../shared/list';
 import { isBoolean, isNumber, isString } from "../shared/type-predicates";
 import { Result, makeOk, makeFailure, bind, mapResult, mapv } from "../shared/result";
@@ -36,7 +36,8 @@ const L3applicativeEval = (exp: CExp, env: Env): Result<Value> =>
                               exp.rands), 
                             (rands: Value[]) =>
                                 L3applyProcedure(rator, rands, env))) :
-    isLetExp(exp) ? makeFailure('"let" not supported (yet)') :
+    isLetExp(exp) ? makeFailure('"let" not supported (yet)') : 
+    isClassExp(exp) ? makeOk(makeClass(exp.fields, exp.methods, makeEmptyEnv())) :
     makeFailure('Never');
 
 export const isTrueValue = (x: Value): boolean =>
@@ -50,9 +51,45 @@ const evalIf = (exp: IfExp, env: Env): Result<Value> =>
 const evalProc = (exp: ProcExp, env: Env): Result<Closure> =>
     makeOk(makeClosure(exp.args, exp.body));
 
+const applyClass = (cls: Class, args: Value[]): Result<Value> => {
+    // 1. מחלצים את שמות השדות (למשל ["a", "b"])
+    const vars = map((f) => f.var, cls.fields);
+    
+    // 2. הופכים את הערכים לביטויים שאפשר להציב - הפעם בעזרת map רגיל!
+    const argsExps = map(valueToLitExp, args);
+    
+    // 3. מחלצים את גוף המתודות
+    const methodCExps = map((m) => m.val, cls.methods);
+    
+    // 4. *** הקסם של מודל ההצבה *** - מחליפים את השדות בערכים
+    const substitutedMethods = substitute(methodCExps, vars, argsExps);
+    
+    // 5. אורזים את הכל חזרה למתודות חדשות ויוצרים אובייקט
+    const newMethods = zipWith((m, newExp) => makeBinding(m.var.var, newExp), cls.methods, substitutedMethods);
+    return makeOk(makeObject(newMethods, makeEmptyEnv()));
+}
+
+const applyObject = (obj: Object, args: Value[], env: Env): Result<Value> => {
+    // 1. מוודאים שקראו לאובייקט עם שם של מתודה
+    if (args.length === 0) return makeFailure("Object must be applied with a method name");
+    const methodName = args[0];
+    if (!isSymbolSExp(methodName)) return makeFailure("Method name must be a symbol");
+    
+    // 2. מחפשים את המתודה המבוקשת
+    const method = obj.methods.find(m => m.var.var === methodName.val);
+    if (!method) return makeFailure(`Unrecognized method: ${methodName.val}`);
+    
+    // 3. מריצים - שימי לב שהוספנו את ה-env לשתי הקריאות כאן!
+    return bind(L3applicativeEval(method.val, env), (methodVal: Value) =>
+        L3applyProcedure(methodVal, args.slice(1), env)
+    );
+}
+
 const L3applyProcedure = (proc: Value, args: Value[], env: Env): Result<Value> =>
     isPrimOp(proc) ? applyPrimitive(proc, args) :
     isClosure(proc) ? applyClosure(proc, args, env) :
+    isClass(proc) ? applyClass(proc, args) :
+    isObject(proc) ? applyObject(proc, args, env) :
     makeFailure(`Bad procedure ${format(proc)}`);
 
 // Applications are computed by substituting computed
@@ -65,7 +102,7 @@ const valueToLitExp = (v: Value): NumExp | BoolExp | StrExp | LitExp | PrimOp | 
     isString(v) ? makeStrExp(v) :
     isPrimOp(v) ? v :
     isClosure(v) ? makeProcExp(v.params, v.body) :
-    makeLitExp(v);
+    makeLitExp(v as any);
 
 const applyClosure = (proc: Closure, args: Value[], env: Env): Result<Value> => {
     const vars = map((v: VarDecl) => v.var, proc.params);
