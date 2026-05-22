@@ -45,7 +45,7 @@ export const l2ToPython = (exp: Exp | Program): Result<string> =>
     ) :
     
     isProcExp(exp) ? bind(l2ToPython(exp.body[0]), (body: string) =>
-        makeOk(`(lambda ${exp.args.map(a => a.var).join(", ")} : ${body})`)
+        makeOk(`(lambda ${exp.args.map(a => a.var).join(",")} : ${body})`)
     ) :
 
     isAppExp(exp) ? bind(l2ToPython(exp.rator), (rator: string) =>
