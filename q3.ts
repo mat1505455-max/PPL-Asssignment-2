@@ -52,8 +52,8 @@ export const l2ToPython = (exp: Exp | Program): Result<string> =>
         bind(mapResult(l2ToPython, exp.rands), (rands: string[]) => 
             isPrimOp(exp.rator) && exp.rator.op === "not" ? 
                 makeOk(`(not ${rands[0]})`) :
-            isPrimOp(exp.rator) && ["+", "-", "*", "/", "<", ">", "=", "eq?", "and", "or"].indexOf(exp.rator.op) !== -1 ? makeOk(`(${rands[0]} ${opMap[exp.rator.op]} ${rands[1]})`) :
-            makeOk(`${rator}(${rands.join(", ")})`)
+            isPrimOp(exp.rator) && ["+", "-", "*", "/", "<", ">", "=", "eq?", "and", "or"].indexOf(exp.rator.op) !== -1 ? makeOk(`(${rands.join(` ${opMap[exp.rator.op]} `)})`) :
+            makeOk(`${rator}(${rands.join(",")})`)
         )
     ) :
     makeFailure("Unknown expression type");

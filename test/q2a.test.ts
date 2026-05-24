@@ -8,14 +8,15 @@ describe('Q2A Tests', () => {
      it('test parse/unparse class', () => {
           expect(bind(bind(p(`
           (class (a b) 
-            ((first (lambda () a))
+            ((first (lambda () a)) 
              (second (lambda () b)) 
              (sum (lambda () (+ a b)))))`),parseL3Exp), x=>makeOk(unparseL3(x)))).toStrictEqual(makeOk(`(class (a b) ((first (lambda () a)) (second (lambda () b)) (sum (lambda () (+ a b)))))`));
          });
 
+
      it('test parse wrong class', () => {
-          expect(isFailure(bind(p(`(class ((first (lambda () a)) (second (lambda () b)) (sum (lambda () (+ a b)))))`), parseL3Exp))).toStrictEqual(true);
-          });
+     expect(isFailure(bind(p(`(class ((first (lambda () a)) (second (lambda () b)) (sum (lambda () (+ a b)))))`), parseL3Exp))).toStrictEqual(true);
+     });
 
 
      it('test parse/unparse program', () => {
