@@ -52,34 +52,26 @@ const evalProc = (exp: ProcExp, env: Env): Result<Closure> =>
     makeOk(makeClosure(exp.args, exp.body));
 
 const applyClass = (cls: Class, args: Value[]): Result<Value> => {
-    // 1. מחלצים את שמות השדות (למשל ["a", "b"])
     const vars = map((f) => f.var, cls.fields);
     
-    // 2. הופכים את הערכים לביטויים שאפשר להציב - הפעם בעזרת map רגיל!
     const argsExps = map(valueToLitExp, args);
     
-    // 3. מחלצים את גוף המתודות
     const methodCExps = map((m) => m.val, cls.methods);
     
-    // 4. *** הקסם של מודל ההצבה *** - מחליפים את השדות בערכים
     const substitutedMethods = substitute(methodCExps, vars, argsExps);
     
-    // 5. אורזים את הכל חזרה למתודות חדשות ויוצרים אובייקט
     const newMethods = zipWith((m, newExp) => makeBinding(m.var.var, newExp), cls.methods, substitutedMethods);
     return makeOk(makeObject(newMethods, makeEmptyEnv()));
 }
 
 const applyObject = (obj: Object, args: Value[], env: Env): Result<Value> => {
-    // 1. מוודאים שקראו לאובייקט עם שם של מתודה
     if (args.length === 0) return makeFailure("Object must be applied with a method name");
     const methodName = args[0];
     if (!isSymbolSExp(methodName)) return makeFailure("Method name must be a symbol");
     
-    // 2. מחפשים את המתודה המבוקשת
     const method = obj.methods.find(m => m.var.var === methodName.val);
     if (!method) return makeFailure(`Unrecognized method: ${methodName.val}`);
     
-    // 3. מריצים - שימי לב שהוספנו את ה-env לשתי הקריאות כאן!
     return bind(L3applicativeEval(method.val, env), (methodVal: Value) =>
         L3applyProcedure(methodVal, args.slice(1), env)
     );
